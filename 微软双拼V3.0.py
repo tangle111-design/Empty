@@ -31,6 +31,8 @@ ctk.set_default_color_theme("blue")  # Themes: blue (default), dark-blue, green
 # 声母映射 (只有非单字符的声母需要转换，其余即为键盘对应字母)
 INITIALS_MAP = {"zh": "v", "ch": "i", "sh": "u"}
 
+""""无敌了忘记保存V4.0了"""
+
 # 韵母映射
 FINALS_MAP = {
     # 单字母韵母
