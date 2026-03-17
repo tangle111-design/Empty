@@ -15,7 +15,7 @@ from pypinyin import pinyin, Style
 
 """
 TODO
-- [ ] aaa
+
 改为微软双拼方案   DONE
 增加错题分析      DONE
 增加错题练习      DONE
@@ -33,54 +33,48 @@ ctk.set_default_color_theme("blue")  # Themes: blue (default), dark-blue, green
 INITIALS_MAP = {"zh": "v", "ch": "i", "sh": "u"}
 
 
-
 # 韵母映射
-
 XIAOHE_FINALS_MAP = {
     # 单字母韵母
-    
-        "a": "a",
-        "o": "o",
-        "e": "e",
-        "i": "i",
-        "u": "u",
-        "v": "v",
-        "ü": "v",
-    
+    "a": "a",
+    "o": "o",
+    "e": "e",
+    "i": "i",
+    "u": "u",
+    "v": "v",
+    "ü": "v",
     # 多字母韵母
-    
-        "ai": "d",
-        "an": "j",
-        "ang": "h",
-        "ao": "c",
-        "ei": "w",
-        "en": "f",
-        "eng": "g",
-        "er": "r",
-        "ia": "x",
-        "ian": "m",
-        "iang": "l",
-        "iao": "n",
-        "ie": "p",
-        "in": "b",
-        "ing": "k",
-        "iong": "s",
-        "iu": "q",
-        "ong": "s",
-        "ou": "z",
-        "ua": "x",
-        "uai": "k",
-        "uan": "r",
-        "uang": "l",
-        "ue": "t",
-        "ui": "v",
-        "un": "y",
-        "uo": "o",
-        "ve": "t",      # üe
-        "vn": "y",      # ün
-        "üe": "t",
-        "ün": "y",
-    
+    "ai": "d",
+    "an": "j",
+    "ang": "h",
+    "ao": "c",
+    "ei": "w",
+    "en": "f",
+    "eng": "g",
+    "er": "r",
+    "ia": "x",
+    "ian": "m",
+    "iang": "l",
+    "iao": "n",
+    "ie": "p",
+    "in": "b",
+    "ing": "k",
+    "iong": "s",
+    "iu": "q",
+    "ong": "s",
+    "ou": "z",
+    "ua": "x",
+    "uai": "k",
+    "uan": "r",
+    "uang": "l",
+    "ue": "t",
+    "ui": "v",
+    "un": "y",
+    "uo": "o",
+    "ve": "t",  # üe
+    "vn": "y",  # ün
+    "üe": "t",
+    "ün": "y",
 }
 
 MICROSOFT_FINALS_MAP = {
@@ -125,19 +119,9 @@ MICROSOFT_FINALS_MAP = {
     "uang": "d",
     "uo": "o",
 }
-"""==========================================
-附加说明：微软双拼的零声母（没有声母的拼音）规则：
-微软双拼固定使用字母 `o` 作为零声母的占位引导符（代替声母键）。
 
-1. 单字母韵母 (a, o, e)：前加 o。
-   例如：a -> oa, o -> oo, e -> oe
-2. 双字母/多字母韵母 (ai, an, ang 等)：首键固定为 o，第二码为韵母映射键。
-   例如：ai -> o + l(ai) -> ol
-         ang -> o + h(ang) -> oh
-         er -> o + r(er) -> or
-=========================================="""
-
-ERROR_ANALYSIS_DATA = [# TODO 以后存在本地
+ERROR_CHARS = []  # 使用列表的append，可以使得易错字多练
+ERROR_ANALYSIS_DATA = [  # TODO 以后存在本地
     {
         "target_initial": {
             "user_input_initial": [""],
@@ -200,9 +184,9 @@ class XiaohePinyinLogic:
             code1 = py_final[0]  # 零声母时，code1 取韵母首字母
         if py_final in XIAOHE_FINALS_MAP:
             code2 = XIAOHE_FINALS_MAP[py_final]
-        
 
         return code1, code2
+
 
 class MicrosoftPinyinLogic:
     """处理汉字到微软双拼编码的转换逻辑"""
@@ -227,8 +211,6 @@ class MicrosoftPinyinLogic:
         code2 = ""
         if py_final in MICROSOFT_FINALS_MAP:
             code2 = MICROSOFT_FINALS_MAP[py_final]
-        
-            
 
         return code1, code2
 
@@ -242,6 +224,8 @@ class App(ctk.CTk):
         self.resizable(False, False)
 
         # 状态变量
+        self.scheme = "microsoft"  # 默认使用微软双拼方案
+        self._is_error_practice_mode = False
         self.current_char = ""
         self.target_code = ""
         self.total_chars = 0
@@ -324,7 +308,25 @@ class App(ctk.CTk):
         )
         self.error_analysis_btn.pack(side="left", padx=10)
 
-        
+        # 切换双拼方案
+        self.scheme_btn = ctk.CTkButton(
+            self.btn_frame,
+            text="当前方案: 微软双拼",
+            command=self.switch_scheme,
+            fg_color="#3498DB",
+            hover_color="#2980B9",
+        )
+        self.scheme_btn.pack(side="left", padx=10)
+
+        # 错题模式
+        self.error_practice_btn = ctk.CTkButton(
+            self.btn_frame,
+            text="错题练习",
+            command=self.change_error_practice_mode,
+            fg_color="#F39C12",
+            hover_color="#D35400",
+        )
+        self.error_practice_btn.pack(side="left", padx=10)
 
         self.reset_btn = ctk.CTkButton(
             self.btn_frame,
@@ -341,12 +343,17 @@ class App(ctk.CTk):
 
     def load_new_char(self):
         """加载一个新的随机汉字"""
-        self.current_char = random.choice(COMMON_CHARS)
+        if self._is_error_practice_mode and ERROR_CHARS:
+            self.current_char = random.choice(ERROR_CHARS)
+        else:
+            self.current_char = random.choice(COMMON_CHARS)
 
-        self.target_code = (
-            MicrosoftPinyinLogic.get_microsoft_code(self.current_char)[0]
-            + MicrosoftPinyinLogic.get_microsoft_code(self.current_char)[1]
-        ).lower()
+        if self.scheme == "microsoft":
+            code1, code2 = MicrosoftPinyinLogic.get_microsoft_code(self.current_char)
+            self.target_code = (code1 + code2).lower()
+        else:
+            code1, code2 = XiaohePinyinLogic.get_xiaohe_code(self.current_char)
+            self.target_code = (code1 + code2).lower()
 
         # 更新UI
         self.char_label.configure(text=self.current_char)
@@ -372,12 +379,12 @@ class App(ctk.CTk):
             self.start_time = time.time()
         if len(user_input) > 2:
             # 输入错误
-                self.flash_feedback("red")
-                self.entry.delete(0, "end")  # 清空让用户重输:
-                return
-        
+            self.flash_feedback("red")
+            self.entry.delete(0, "end")  # 清空让用户重输:
+            return
+
         if len(user_input) == 2:
-            
+
             if user_input == self.target_code:
                 # 输入正确
                 self.correct_chars += 1
@@ -386,44 +393,71 @@ class App(ctk.CTk):
             else:
                 # 输入错误
                 self.flash_feedback("red")
+
                 self.entry.delete(0, "end")  # 清空让用户重输
 
-                # TODO 记录错误数据
-                # 声母错误 或 补o错误（零声母）
-                if user_input[0] != self.target_code[0]:
-                    if self.target_code[0] not in ERROR_ANALYSIS_DATA[0]:
-                        ERROR_ANALYSIS_DATA[0][self.target_code[0]] = {
-                            "user_input_initial": [user_input[0]],
-                            "error_count": 1,
-                            "timestamps": [time.time()],
-                        }
-                    else:
-                        ERROR_ANALYSIS_DATA[0][self.target_code[0]][
-                            "user_input_initial"
-                        ].append(user_input[0])
-                        ERROR_ANALYSIS_DATA[0][self.target_code[0]]["error_count"] += 1
-                        ERROR_ANALYSIS_DATA[0][self.target_code[0]]["timestamps"].append(
-                            time.time()
-                        )
+                if not self._is_error_practice_mode:  # 错题模式下不记录错题，避免死循环
+                    ERROR_CHARS.append(
+                        self.current_char
+                    )  # 记录错题，后续可以增加错题练习功能
+                    # 声母错误 或 补o错误（零声母）
+                    if user_input[0] != self.target_code[0]:
+                        if self.target_code[0] not in ERROR_ANALYSIS_DATA[0]:
+                            ERROR_ANALYSIS_DATA[0][self.target_code[0]] = {
+                                "user_input_initial": [user_input[0]],
+                                "error_count": 1,
+                                "timestamps": [time.time()],
+                            }
+                        else:
+                            ERROR_ANALYSIS_DATA[0][self.target_code[0]][
+                                "user_input_initial"
+                            ].append(user_input[0])
+                            ERROR_ANALYSIS_DATA[0][self.target_code[0]][
+                                "error_count"
+                            ] += 1
+                            ERROR_ANALYSIS_DATA[0][self.target_code[0]][
+                                "timestamps"
+                            ].append(time.time())
 
-                # 韵母错误
-                if user_input[1] != self.target_code[1]:
-                    if self.target_code[1] not in ERROR_ANALYSIS_DATA[1]:
-                        ERROR_ANALYSIS_DATA[1][self.target_code[1]] = {
-                            "user_input_final": [user_input[1]],
-                            "error_count": 1,
-                            "timestamps": [time.time()],
-                        }
-                    else:
-                        ERROR_ANALYSIS_DATA[1][self.target_code[1]][
-                            "user_input_final"
-                        ].append(user_input[1])
-                        ERROR_ANALYSIS_DATA[1][self.target_code[1]]["error_count"] += 1
-                        ERROR_ANALYSIS_DATA[1][self.target_code[1]]["timestamps"].append(
-                            time.time()
-                        )
+                    # 韵母错误
+                    if user_input[1] != self.target_code[1]:
+                        if self.target_code[1] not in ERROR_ANALYSIS_DATA[1]:
+                            ERROR_ANALYSIS_DATA[1][self.target_code[1]] = {
+                                "user_input_final": [user_input[1]],
+                                "error_count": 1,
+                                "timestamps": [time.time()],
+                            }
+                        else:
+                            ERROR_ANALYSIS_DATA[1][self.target_code[1]][
+                                "user_input_final"
+                            ].append(user_input[1])
+                            ERROR_ANALYSIS_DATA[1][self.target_code[1]][
+                                "error_count"
+                            ] += 1
+                            ERROR_ANALYSIS_DATA[1][self.target_code[1]][
+                                "timestamps"
+                            ].append(time.time())
 
             self.update_stats()
+
+    def change_error_practice_mode(self):
+        """切换错题练习模式"""
+        if not self._is_error_practice_mode:
+            if not ERROR_CHARS:
+                self.show_info("当前没有错题可练习！")
+                return
+            self.error_practice_btn.configure(text="退出错题练习")
+            self.error_practice_mode()
+            self.load_new_char()
+        else:
+            self.error_practice_btn.configure(text="错题练习")
+            self._is_error_practice_mode = False
+            self.load_new_char()  # 退出错题模式后加载正常练习的随机字
+
+    def error_practice_mode(self):
+        """进入错题练习模式"""
+        self._is_error_practice_mode = True
+        self.load_new_char()
 
     def flash_feedback(self, color):
         """简单的视觉反馈"""
@@ -458,28 +492,37 @@ class App(ctk.CTk):
         self.start_time = None
         self.acc_label.configure(text="正确率: 100%")
         self.load_new_char()
-        # self.entry.focus()
+
+    def switch_scheme(self):
+        if self.scheme == "microsoft":
+            self.scheme = "xiaohe"
+            self.scheme_btn.configure(text="当前方案: 小鹤双拼")
+        else:
+            self.scheme = "microsoft"
+            self.scheme_btn.configure(text="当前方案: 微软双拼")
+        self.load_new_char()  # 切换方案后加载新字以更新提示
+
+    def show_info(self, message):
+        popup = ctk.CTkToplevel(self)
+        popup.title("错误分析")
+        popup.geometry("300x150")
+        popup.transient(self)  # 设为父窗口的临时窗口
+        popup.grab_set()  # 模态（焦点锁定）
+
+        label = ctk.CTkLabel(popup, text=message, wraplength=250)
+        label.pack(pady=20)
+
+        btn_ok = ctk.CTkButton(popup, text="确定", command=popup.destroy)
+        btn_ok.pack(pady=10)
 
     def show_error_analysis(self):
-        def show_info(message):
-            popup = ctk.CTkToplevel(app)
-            popup.title("错误分析")
-            popup.geometry("300x150")
-            popup.transient(app)  # 设为父窗口的临时窗口
-            popup.grab_set()  # 模态（焦点锁定）
 
-            label = ctk.CTkLabel(popup, text=message, wraplength=250)
-            label.pack(pady=20)
-
-            btn_ok = ctk.CTkButton(popup, text="确定", command=popup.destroy)
-            btn_ok.pack(pady=10)
-        
         # 绘图，展示时间趋势、错误频率
         if len(ERROR_ANALYSIS_DATA[0]) + len(ERROR_ANALYSIS_DATA[1]) <= 2:
-            show_info("当前没有错误数据可分析！")
+            self.show_info("当前没有错误数据可分析！")
             return
-        elif len(ERROR_ANALYSIS_DATA[0]) + len(ERROR_ANALYSIS_DATA[1]) <= 4: # TODO
-            show_info("你的错题还不够！\n练习几分钟后再来分析吧！")
+        elif len(ERROR_ANALYSIS_DATA[0]) + len(ERROR_ANALYSIS_DATA[1]) <= 4:  # TODO 修改
+            self.show_info("你的错题还不够！\n练习几分钟后再来分析吧！")
             return
         else:
             import matplotlib.pyplot as plt
@@ -487,12 +530,20 @@ class App(ctk.CTk):
             import matplotlib
 
             # 解决中文乱码：指定使用系统中的黑体
-            plt.rcParams['font.sans-serif'] = ['SimHei'] 
-            plt.rcParams['axes.unicode_minus'] = False
+            plt.rcParams["font.sans-serif"] = ["SimHei"]
+            plt.rcParams["axes.unicode_minus"] = False
 
             # 过滤数据，排除掉初始化时的占位Key
-            initial_errors = {k: v['error_count'] for k, v in ERROR_ANALYSIS_DATA[0].items() if k != "target_initial"}
-            final_errors = {k: v['error_count'] for k, v in ERROR_ANALYSIS_DATA[1].items() if k != "target_final"}
+            initial_errors = {
+                k: v["error_count"]
+                for k, v in ERROR_ANALYSIS_DATA[0].items()
+                if k != "target_initial"
+            }
+            final_errors = {
+                k: v["error_count"]
+                for k, v in ERROR_ANALYSIS_DATA[1].items()
+                if k != "target_final"
+            }
 
             if not initial_errors and not final_errors:
                 return
@@ -501,10 +552,10 @@ class App(ctk.CTk):
             analysis_window = ctk.CTkToplevel(self)
             analysis_window.title("错题统计分析")
             analysis_window.geometry("700x500")
-            
+
             # 核心：将弹窗设置为临时窗口并锁定，防止被遮挡
-            analysis_window.transient(self) 
-            analysis_window.grab_set() 
+            analysis_window.transient(self)
+            analysis_window.grab_set()
 
             # 创建绘图对象
             fig = plt.Figure(figsize=(6, 4), dpi=100)
@@ -513,12 +564,12 @@ class App(ctk.CTk):
 
             # 绘制声母错误
             if initial_errors:
-                ax1.bar(initial_errors.keys(), initial_errors.values(), color='#E04F5F')
+                ax1.bar(initial_errors.keys(), initial_errors.values(), color="#E04F5F")
                 ax1.set_title("声母错误频率")
-            
+
             # 绘制韵母错误
             if final_errors:
-                ax2.bar(final_errors.keys(), final_errors.values(), color='#0BAD7F')
+                ax2.bar(final_errors.keys(), final_errors.values(), color="#0BAD7F")
                 ax2.set_title("韵母错误频率")
 
             # 嵌入到 customtkinter
@@ -527,10 +578,12 @@ class App(ctk.CTk):
             canvas.get_tk_widget().pack(fill="both", expand=True, padx=10, pady=10)
 
             # 关闭按钮
-            ctk.CTkButton(analysis_window, text="关闭", command=analysis_window.destroy).pack(pady=10)
+            ctk.CTkButton(
+                analysis_window, text="关闭", command=analysis_window.destroy
+            ).pack(pady=10)
+
 
 if __name__ == "__main__":
     app = App()
     app.mainloop()
     print("错误分析数据:", ERROR_ANALYSIS_DATA)
-    
