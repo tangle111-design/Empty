@@ -15,7 +15,7 @@ from pypinyin import pinyin, Style
 
 """
 TODO
-- [ ] aaa
+
 改为微软双拼方案   DONE
 增加错题分析      DONE
 增加错题练习      
@@ -31,7 +31,7 @@ ctk.set_default_color_theme("blue")  # Themes: blue (default), dark-blue, green
 # 声母映射 (只有非单字符的声母需要转换，其余即为键盘对应字母)
 INITIALS_MAP = {"zh": "v", "ch": "i", "sh": "u"}
 
-""""无敌了忘记保存V4.0了"""
+
 
 # 韵母映射
 FINALS_MAP = {
@@ -63,7 +63,7 @@ FINALS_MAP = {
     "ün": "p",
     "ang": "h",
     "eng": "g",
-    "ing": ";",  # 注意：微软双拼的 ing 映射在分号键上
+    "ing": ";",  
     "ong": "s",
     "iong": "s",
     "ia": "w",
@@ -76,17 +76,6 @@ FINALS_MAP = {
     "uang": "d",
     "uo": "o",
 }
-"""==========================================
-附加说明：微软双拼的零声母（没有声母的拼音）规则：
-微软双拼固定使用字母 `o` 作为零声母的占位引导符（代替声母键）。
-
-1. 单字母韵母 (a, o, e)：前加 o。
-   例如：a -> oa, o -> oo, e -> oe
-2. 双字母/多字母韵母 (ai, an, ang 等)：首键固定为 o，第二码为韵母映射键。
-   例如：ai -> o + l(ai) -> ol
-         ang -> o + h(ang) -> oh
-         er -> o + r(er) -> or
-=========================================="""
 
 ERROR_ANALYSIS_DATA = [# TODO 以后存在本地
     {
@@ -105,7 +94,7 @@ ERROR_ANALYSIS_DATA = [# TODO 以后存在本地
         }
     },
 ]
-
+ERROR_CHARS = [] # 使用列表的append，可以使得易错字多练
 # 汉字库 包含所有拼音组合
 COMMON_CHARS = (
     "八把波伯百白北被班半本奔帮榜崩蹦比必别憋表标边变宾滨兵病不布爬怕婆破拍派陪配"
@@ -155,13 +144,9 @@ class MicrosoftPinyinLogic:
             code2 = FINALS_MAP[py_final]
         else:
             # 单韵母如果不在表中（比如 a, o, e），通常映射为自身
-            # 微软双拼中，单韵母 a, o, e, i, u, v 都在键盘上有对应
-            # 特殊情况处理：比如输入的字通过 pypinyin 解析比较特殊
             if len(py_final) == 1:
                 code2 = py_final
-            else:
-                code2 = py_final[-1]  # fallback，通常不会走到这
-
+            
         return code1, code2
 
 
@@ -174,6 +159,7 @@ class App(ctk.CTk):
         self.resizable(False, False)
 
         # 状态变量
+        self._is_error_practice_mode = False
         self.current_char = ""
         self.target_code = ""
         self.total_chars = 0
@@ -256,6 +242,16 @@ class App(ctk.CTk):
         )
         self.error_analysis_btn.pack(side="left", padx=10)
 
+        # 错题模式
+        self.error_practice_btn = ctk.CTkButton(
+            self.btn_frame,
+            text="错题练习",
+            command=self.change_error_practice_mode,
+            fg_color="#F39C12",
+            hover_color="#D35400",
+        )
+        self.error_practice_btn.pack(side="left", padx=10)
+
         self.reset_btn = ctk.CTkButton(
             self.btn_frame,
             text="重置数据",
@@ -271,7 +267,10 @@ class App(ctk.CTk):
 
     def load_new_char(self):
         """加载一个新的随机汉字"""
-        self.current_char = random.choice(COMMON_CHARS)
+        if self._is_error_practice_mode and ERROR_CHARS:
+            self.current_char = random.choice(ERROR_CHARS)
+        else:
+            self.current_char = random.choice(COMMON_CHARS)
 
         self.target_code = (
             MicrosoftPinyinLogic.get_microsoft_code(self.current_char)[0]
@@ -316,44 +315,64 @@ class App(ctk.CTk):
             else:
                 # 输入错误
                 self.flash_feedback("red")
+                
                 self.entry.delete(0, "end")  # 清空让用户重输
 
-                # TODO 记录错误数据
-                # 声母错误 或 补o错误（零声母）
-                if user_input[0] != self.target_code[0]:
-                    if self.target_code[0] not in ERROR_ANALYSIS_DATA[0]:
-                        ERROR_ANALYSIS_DATA[0][self.target_code[0]] = {
-                            "user_input_initial": [user_input[0]],
-                            "error_count": 1,
-                            "timestamps": [time.time()],
-                        }
-                    else:
-                        ERROR_ANALYSIS_DATA[0][self.target_code[0]][
-                            "user_input_initial"
-                        ].append(user_input[0])
-                        ERROR_ANALYSIS_DATA[0][self.target_code[0]]["error_count"] += 1
-                        ERROR_ANALYSIS_DATA[0][self.target_code[0]]["timestamps"].append(
-                            time.time()
-                        )
+                if not self._is_error_practice_mode: # 错题模式下不记录错题，避免死循环
+                    ERROR_CHARS.append(self.current_char)  # 记录错题，后续可以增加错题练习功能
+                    # 声母错误 或 补o错误（零声母）
+                    if user_input[0] != self.target_code[0]:
+                        if self.target_code[0] not in ERROR_ANALYSIS_DATA[0]:
+                            ERROR_ANALYSIS_DATA[0][self.target_code[0]] = {
+                                "user_input_initial": [user_input[0]],
+                                "error_count": 1,
+                                "timestamps": [time.time()],
+                            }
+                        else:
+                            ERROR_ANALYSIS_DATA[0][self.target_code[0]][
+                                "user_input_initial"
+                            ].append(user_input[0])
+                            ERROR_ANALYSIS_DATA[0][self.target_code[0]]["error_count"] += 1
+                            ERROR_ANALYSIS_DATA[0][self.target_code[0]]["timestamps"].append(
+                                time.time()
+                            )
 
-                # 韵母错误
-                if user_input[1] != self.target_code[1]:
-                    if self.target_code[1] not in ERROR_ANALYSIS_DATA[1]:
-                        ERROR_ANALYSIS_DATA[1][self.target_code[1]] = {
-                            "user_input_final": [user_input[1]],
-                            "error_count": 1,
-                            "timestamps": [time.time()],
-                        }
-                    else:
-                        ERROR_ANALYSIS_DATA[1][self.target_code[1]][
-                            "user_input_final"
-                        ].append(user_input[1])
-                        ERROR_ANALYSIS_DATA[1][self.target_code[1]]["error_count"] += 1
-                        ERROR_ANALYSIS_DATA[1][self.target_code[1]]["timestamps"].append(
-                            time.time()
-                        )
+                    # 韵母错误
+                    if user_input[1] != self.target_code[1]:
+                        if self.target_code[1] not in ERROR_ANALYSIS_DATA[1]:
+                            ERROR_ANALYSIS_DATA[1][self.target_code[1]] = {
+                                "user_input_final": [user_input[1]],
+                                "error_count": 1,
+                                "timestamps": [time.time()],
+                            }
+                        else:
+                            ERROR_ANALYSIS_DATA[1][self.target_code[1]][
+                                "user_input_final"
+                            ].append(user_input[1])
+                            ERROR_ANALYSIS_DATA[1][self.target_code[1]]["error_count"] += 1
+                            ERROR_ANALYSIS_DATA[1][self.target_code[1]]["timestamps"].append(
+                                time.time()
+                            )
 
             self.update_stats()
+    def change_error_practice_mode(self):
+        """切换错题练习模式"""
+        if not self._is_error_practice_mode:
+            if not ERROR_CHARS:
+                self.show_info("当前没有错题可练习！")
+                return
+            self.error_practice_btn.configure(text="退出错题练习")
+            self.error_practice_mode()
+            self.load_new_char()
+        else:
+            self.error_practice_btn.configure(text="错题练习")
+            self._is_error_practice_mode = False
+            self.load_new_char()  # 退出错题模式后加载正常练习的随机字
+
+    def error_practice_mode(self):
+        """进入错题练习模式"""
+        self._is_error_practice_mode = True
+        self.load_new_char()
 
     def flash_feedback(self, color):
         """简单的视觉反馈"""
@@ -388,28 +407,29 @@ class App(ctk.CTk):
         self.start_time = None
         self.acc_label.configure(text="正确率: 100%")
         self.load_new_char()
-        # self.entry.focus()
+
+    def show_info(self, message):
+        popup = ctk.CTkToplevel(self)
+        popup.title("错误分析")
+        popup.geometry("300x150")
+        popup.transient(self)  # 设为父窗口的临时窗口
+        popup.grab_set()  # 模态（焦点锁定）
+
+        label = ctk.CTkLabel(popup, text=message, wraplength=250)
+        label.pack(pady=20)
+
+        btn_ok = ctk.CTkButton(popup, text="确定", command=popup.destroy)
+        btn_ok.pack(pady=10)
 
     def show_error_analysis(self):
-        def show_info(message):
-            popup = ctk.CTkToplevel(app)
-            popup.title("错误分析")
-            popup.geometry("300x150")
-            popup.transient(app)  # 设为父窗口的临时窗口
-            popup.grab_set()  # 模态（焦点锁定）
 
-            label = ctk.CTkLabel(popup, text=message, wraplength=250)
-            label.pack(pady=20)
-
-            btn_ok = ctk.CTkButton(popup, text="确定", command=popup.destroy)
-            btn_ok.pack(pady=10)
         
         # 绘图，展示时间趋势、错误频率
         if len(ERROR_ANALYSIS_DATA[0]) + len(ERROR_ANALYSIS_DATA[1]) <= 2:
-            show_info("当前没有错误数据可分析！")
+            self.show_info("当前没有错误数据可分析！")
             return
         elif len(ERROR_ANALYSIS_DATA[0]) + len(ERROR_ANALYSIS_DATA[1]) <= 4: # TODO
-            show_info("你的错题还不够！\n练习几分钟后再来分析吧！")
+            self.show_info("你的错题还不够！\n练习几分钟后再来分析吧！")
             return
         else:
             import matplotlib.pyplot as plt

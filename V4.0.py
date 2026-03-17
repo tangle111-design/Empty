@@ -18,7 +18,7 @@ TODO
 - [ ] aaa
 改为微软双拼方案   DONE
 增加错题分析      DONE
-增加错题练习      
+增加错题练习      DONE
 增加小鹤方案     
 增加文章模式     
 """
@@ -27,14 +27,63 @@ TODO
 ctk.set_appearance_mode("System")  # Modes: system (default), light, dark
 ctk.set_default_color_theme("blue")  # Themes: blue (default), dark-blue, green
 
-# --- 微软双拼映射表 ---
+
 # 声母映射 (只有非单字符的声母需要转换，其余即为键盘对应字母)
+# 小鹤和微软一样，不用改了
 INITIALS_MAP = {"zh": "v", "ch": "i", "sh": "u"}
 
-""""无敌了忘记保存V4.0了"""
+
 
 # 韵母映射
-FINALS_MAP = {
+
+XIAOHE_FINALS_MAP = {
+    # 单字母韵母
+    
+        "a": "a",
+        "o": "o",
+        "e": "e",
+        "i": "i",
+        "u": "u",
+        "v": "v",
+        "ü": "v",
+    
+    # 多字母韵母
+    
+        "ai": "d",
+        "an": "j",
+        "ang": "h",
+        "ao": "c",
+        "ei": "w",
+        "en": "f",
+        "eng": "g",
+        "er": "r",
+        "ia": "x",
+        "ian": "m",
+        "iang": "l",
+        "iao": "n",
+        "ie": "p",
+        "in": "b",
+        "ing": "k",
+        "iong": "s",
+        "iu": "q",
+        "ong": "s",
+        "ou": "z",
+        "ua": "x",
+        "uai": "k",
+        "uan": "r",
+        "uang": "l",
+        "ue": "t",
+        "ui": "v",
+        "un": "y",
+        "uo": "o",
+        "ve": "t",      # üe
+        "vn": "y",      # ün
+        "üe": "t",
+        "ün": "y",
+    
+}
+
+MICROSOFT_FINALS_MAP = {
     # 单字母韵母
     "a": "a",
     "o": "o",
@@ -131,6 +180,30 @@ COMMON_CHARS = (
 )
 
 
+class XiaohePinyinLogic:
+    """处理汉字到小鹤双拼编码的转换逻辑"""
+
+    @staticmethod
+    def get_xiaohe_code(char):
+        """获取单个汉字的小鹤双拼编码"""
+        # 获取声母和韵母
+        # pypinyin 返回格式: [['zh'], ['uang']]
+        py_initial = pinyin(char, style=Style.INITIALS, strict=False)[0][0]
+        py_final = pinyin(char, style=Style.FINALS, strict=False)[0][0]
+
+        code1 = ""
+        if py_initial:
+            code1 = INITIALS_MAP.get(py_initial, py_initial)  # 查表，查不到就是原字母
+
+        code2 = ""
+        if code1 == "":
+            code1 = py_final[0]  # 零声母时，code1 取韵母首字母
+        if py_final in XIAOHE_FINALS_MAP:
+            code2 = XIAOHE_FINALS_MAP[py_final]
+        
+
+        return code1, code2
+
 class MicrosoftPinyinLogic:
     """处理汉字到微软双拼编码的转换逻辑"""
 
@@ -142,6 +215,7 @@ class MicrosoftPinyinLogic:
         py_initial = pinyin(char, style=Style.INITIALS, strict=False)[0][0]
         py_final = pinyin(char, style=Style.FINALS, strict=False)[0][0]
 
+        # 处理声母 code1
         code1 = ""
         if py_initial:
             code1 = INITIALS_MAP.get(py_initial, py_initial)  # 查表，查不到就是原字母
@@ -149,18 +223,12 @@ class MicrosoftPinyinLogic:
             # 微软双拼的零声母规则：使用字母 `o` 作为零声母的占位引导符
             code1 = "o"
 
-        # 2. 处理韵母 code2
+        # 处理韵母 code2
         code2 = ""
-        if py_final in FINALS_MAP:
-            code2 = FINALS_MAP[py_final]
-        else:
-            # 单韵母如果不在表中（比如 a, o, e），通常映射为自身
-            # 微软双拼中，单韵母 a, o, e, i, u, v 都在键盘上有对应
-            # 特殊情况处理：比如输入的字通过 pypinyin 解析比较特殊
-            if len(py_final) == 1:
-                code2 = py_final
-            else:
-                code2 = py_final[-1]  # fallback，通常不会走到这
+        if py_final in MICROSOFT_FINALS_MAP:
+            code2 = MICROSOFT_FINALS_MAP[py_final]
+        
+            
 
         return code1, code2
 
@@ -255,6 +323,8 @@ class App(ctk.CTk):
             hover_color="#42AF24",
         )
         self.error_analysis_btn.pack(side="left", padx=10)
+
+        
 
         self.reset_btn = ctk.CTkButton(
             self.btn_frame,
