@@ -1,28 +1,21 @@
-import subprocess
-import sys
-
-# 自动安装缺失的第三方库
-for pkg in ["customtkinter", "pypinyin"]:
-    try:
-        __import__(pkg)
-    except ImportError:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", pkg])
+import sys, subprocess, importlib, random, time
+for p in ["customtkinter", "pypinyin", "matplotlib"]:
+    try: importlib.import_module(p)
+    except: subprocess.check_call([sys.executable, "-m", "pip", "install", p])
 
 import customtkinter as ctk
-import random
-import time
 from pypinyin import pinyin, Style
 
 """
 TODO
 
-改为微软双拼方案   DONE
+微软双拼方案   DONE
 增加错题分析      DONE
 增加错题练习      DONE
 增加小鹤方案      DONE
 增加文章模式     
 将错误分析数据持久化到本地（文件或数据库）
-增加练习统计数据（总练习时间、平均每字输入时间等）
+增加练习统计数据（总练习时间、平均每字输入时间等） DONE
 """
 
 # --- 配置部分 ---
@@ -560,7 +553,7 @@ class App(ctk.CTk):
             self.show_info("当前没有错误数据可分析！")
             return
         elif (
-            len(ERROR_ANALYSIS_DATA[0]) + len(ERROR_ANALYSIS_DATA[1]) <= 4
+            len(ERROR_ANALYSIS_DATA[0]) + len(ERROR_ANALYSIS_DATA[1]) <= 3
         ):  # TODO 修改
             self.show_info("你的错题还不够！\n练习几分钟后再来分析吧！")
             return
@@ -588,10 +581,13 @@ class App(ctk.CTk):
             if not initial_errors and not final_errors:
                 return
 
+            initial_errors = dict(sorted(initial_errors.items(), key=lambda item: item[1], reverse=True))
+            final_errors = dict(sorted(final_errors.items(), key=lambda item: item[1], reverse=True))
+            
             # 创建顶级窗口
             analysis_window = ctk.CTkToplevel(self)
             analysis_window.title("错题统计分析")
-            analysis_window.geometry("700x500")
+            analysis_window.geometry("1400x1000")
 
             # 核心：将弹窗设置为临时窗口并锁定，防止被遮挡
             analysis_window.transient(self)
@@ -601,16 +597,17 @@ class App(ctk.CTk):
             fig = plt.Figure(figsize=(6, 4), dpi=100)
             ax1 = fig.add_subplot(121)
             ax2 = fig.add_subplot(122)
-
+            # TODO 这里显示的是键盘上的字母，后续改成显示对应的拼音韵母/声母
             # 绘制声母错误
+         
             if initial_errors:
                 ax1.bar(initial_errors.keys(), initial_errors.values(), color="#E04F5F")
-                ax1.set_title("声母错误频率")
+                ax1.set_title("声母错误频率", fontdict={"fontsize": 30})
 
             # 绘制韵母错误
             if final_errors:
                 ax2.bar(final_errors.keys(), final_errors.values(), color="#0BAD7F")
-                ax2.set_title("韵母错误频率")
+                ax2.set_title("韵母错误频率", fontdict={"fontsize": 30})
 
             # 嵌入到 customtkinter
             canvas = FigureCanvasTkAgg(fig, master=analysis_window)
@@ -626,4 +623,4 @@ class App(ctk.CTk):
 if __name__ == "__main__":
     app = App()
     app.mainloop()
-    print("错误分析数据:", ERROR_ANALYSIS_DATA)
+    
