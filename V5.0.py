@@ -581,9 +581,9 @@ class App(ctk.CTk):
             if not initial_errors and not final_errors:
                 return
 
-            initial_errors = dict(sorted(initial_errors.items(), key=lambda item: item[1], reverse=True))
-            final_errors = dict(sorted(final_errors.items(), key=lambda item: item[1], reverse=True))
-            
+            initial_errors = dict(sorted(initial_errors.items(), key=lambda item: item[1], reverse=True)[:10])  # 取错误频率最高的前10个声母
+            final_errors = dict(sorted(final_errors.items(), key=lambda item: item[1], reverse=True)[:10])  # 取错误频率最高的前10个韵母
+
             # 创建顶级窗口
             analysis_window = ctk.CTkToplevel(self)
             analysis_window.title("错题统计分析")
