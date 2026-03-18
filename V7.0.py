@@ -1,7 +1,11 @@
-import sys, subprocess, importlib, random, time
+import sys, subprocess, importlib, random, time, json, os
+
+# 自动安装库
 for p in ["customtkinter", "pypinyin", "matplotlib"]:
-    try: importlib.import_module(p)
-    except: subprocess.check_call([sys.executable, "-m", "pip", "install", p])
+    try:
+        importlib.import_module(p)
+    except:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", p])
 
 import customtkinter as ctk
 from pypinyin import pinyin, Style
@@ -21,7 +25,7 @@ TODO
 # --- 配置部分 ---
 ctk.set_appearance_mode("System")  # Modes: system (default), light, dark
 ctk.set_default_color_theme("blue")  # Themes: blue (default), dark-blue, green
-
+DATA_FILE = "practice_data.json"
 
 # 声母映射 (只有非单字符的声母需要转换，其余即为键盘对应字母)
 # 小鹤和微软一样，不用改了
@@ -163,28 +167,18 @@ class XiaohePinyinLogic:
     @staticmethod
     def get_xiaohe_code(char):
         """获取单个汉字的小鹤双拼编码"""
-        # 获取声母和韵母
-        # pypinyin 返回格式: [['zh'], ['uang']]
         py_initial = pinyin(char, style=Style.INITIALS, strict=False)[0][0]
         py_final = pinyin(char, style=Style.FINALS, strict=False)[0][0]
-
-        code1 = ""
-        if py_initial:
-            code1 = INITIALS_MAP.get(py_initial, py_initial)  # 查表，查不到就是原字母
-
-        code2 = ""
-        if code1 == "":  # 零声母时，优先判断是否是二字成词的韵母
-            if py_final in XIAOHE_FINALS_MAP[0]:  # 二字成词的韵母
-                code2 = py_final  # 二字成词韵母直接用全拼
+        code1 = INITIALS_MAP.get(py_initial, py_initial) if py_initial else ""
+        if code1 == "":
+            if py_final in XIAOHE_FINALS_MAP[0]:
+                code2 = py_final
             else:
-                code1 = py_final[0]  # 零声母时，code1 取韵母首字母
-                code2 = XIAOHE_FINALS_MAP[1].get(py_final, "")
+                code1, code2 = py_final[0], XIAOHE_FINALS_MAP[1].get(py_final, "")
         else:
-            if py_final in XIAOHE_FINALS_MAP[1]:
-                code2 = XIAOHE_FINALS_MAP[1][py_final]
-            else:
-                code2 = XIAOHE_FINALS_MAP[0][py_final]
-
+            code2 = XIAOHE_FINALS_MAP[1].get(
+                py_final, XIAOHE_FINALS_MAP[0].get(py_final, "")
+            )
         return code1, code2
 
 
@@ -194,25 +188,12 @@ class MicrosoftPinyinLogic:
     @staticmethod
     def get_microsoft_code(char):
         """获取单个汉字的微软双拼编码"""
-        # 获取声母和韵母
-        # pypinyin 返回格式: [['zh'], ['uang']]
         py_initial = pinyin(char, style=Style.INITIALS, strict=False)[0][0]
         py_final = pinyin(char, style=Style.FINALS, strict=False)[0][0]
-
-        # 处理声母 code1
-        code1 = ""
-        if py_initial:
-            code1 = INITIALS_MAP.get(py_initial, py_initial)  # 查表，查不到就是原字母
-        else:
-            # 微软双拼的零声母规则：使用字母 `o` 作为零声母的占位引导符
-            code1 = "o"
-
-        # 处理韵母 code2
-        code2 = ""
-        if py_final in MICROSOFT_FINALS_MAP:
-            code2 = MICROSOFT_FINALS_MAP[py_final]
-
+        code1 = INITIALS_MAP.get(py_initial, py_initial) if py_initial else "o"
+        code2 = MICROSOFT_FINALS_MAP.get(py_final, "")
         return code1, code2
+
 
 
 class App(ctk.CTk):
@@ -233,10 +214,41 @@ class App(ctk.CTk):
         self.start_time = None
         self.show_hint = True
 
+        # 加载本地历史数据
+        self.load_data()
+
         # 界面布局
         self.create_widgets()
         self.bind_events()
         self.load_new_char()
+        self.update_stats()
+
+    def save_data(self):
+        """将数据保存到本地JSON文件"""
+        data = {
+            "error_chars": ERROR_CHARS,
+            "error_analysis_data": ERROR_ANALYSIS_DATA,
+            "total_chars": self.total_chars,
+            "correct_chars": self.correct_chars,
+        }
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+
+    def load_data(self):
+        """从本地JSON文件加载数据"""
+        if os.path.exists(DATA_FILE):
+            try:
+                with open(DATA_FILE, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    global ERROR_CHARS, ERROR_ANALYSIS_DATA
+                    ERROR_CHARS = data.get("error_chars", [])
+                    ERROR_ANALYSIS_DATA = data.get(
+                        "error_analysis_data", ERROR_ANALYSIS_DATA
+                    )
+                    self.total_chars = data.get("total_chars", 0)
+                    self.correct_chars = data.get("correct_chars", 0)
+            except Exception as e:
+                print(f"加载数据失败: {e}")
 
     def create_widgets(self):
         # 1. 顶部数据栏
@@ -344,7 +356,6 @@ class App(ctk.CTk):
             fg_color="#E04F5F",
             hover_color="#C0392B",
         )
-        # self.reset_btn.pack(side="left", padx=10)
         self.reset_btn.place(relx=0.01, rely=0.5, anchor="w")
 
     def bind_events(self):
@@ -407,8 +418,25 @@ class App(ctk.CTk):
                 self.entry.delete(0, "end")  # 清空让用户重输
 
                 if not self._is_error_practice_mode:  # 错题模式下不记录错题，避免死循环
-                    ERROR_CHARS.append(
-                        self.current_char
+                    '''或许可以仿照这个：
+                if not self._is_error_practice_mode:
+                    if self.current_char not in ERROR_CHARS:
+                        ERROR_CHARS.append(self.current_char)
+                    # 记录详细错误
+                    for i, key in enumerate(["initial", "final"]):
+                        if user_input[i] != self.target_code[i]:
+                            target = self.target_code[i]
+                            if target not in ERROR_ANALYSIS_DATA[i]:
+                                ERROR_ANALYSIS_DATA[i][target] = {
+                                    "error_count": 0,
+                                    "timestamps": [],
+                                }
+                            ERROR_ANALYSIS_DATA[i][target]["error_count"] += 1
+                            ERROR_ANALYSIS_DATA[i][target]["timestamps"].append(
+                                time.time()
+                            )'''
+                    if self.current_char not in ERROR_CHARS:
+                        ERROR_CHARS.append(self.current_char
                     )  # 记录错题，后续可以增加错题练习功能
                     # 声母错误 或 补o错误（零声母）
                     if user_input[0] != self.target_code[0]:
@@ -449,6 +477,7 @@ class App(ctk.CTk):
                             ].append(time.time())
 
             self.update_stats()
+            self.save_data()  # 每次输入后保存
 
     def show_stats(self):
         """显示练习统计数据的弹窗"""
@@ -522,13 +551,15 @@ class App(ctk.CTk):
         ERROR_ANALYSIS_DATA[0].clear()
         ERROR_ANALYSIS_DATA[1].clear()
         ERROR_CHARS.clear()
+        # if os.path.exists(DATA_FILE):
+        #     os.remove(DATA_FILE)  # 删除本地文件
         self.load_new_char()
 
     def switch_scheme(self):
         if self.scheme == "microsoft":
             self.scheme = "xiaohe"
             self.scheme_btn.configure(text="当前方案: 小鹤双拼")
-        else:
+        else:  
             self.scheme = "microsoft"
             self.scheme_btn.configure(text="当前方案: 微软双拼")
         ERROR_ANALYSIS_DATA[0].clear()  # 切换方案时清空错误分析数据，避免混淆
