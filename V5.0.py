@@ -531,6 +531,11 @@ class App(ctk.CTk):
         else:
             self.scheme = "microsoft"
             self.scheme_btn.configure(text="当前方案: 微软双拼")
+        ERROR_ANALYSIS_DATA[0].clear()  # 切换方案时清空错误分析数据，避免混淆
+        ERROR_ANALYSIS_DATA[1].clear()
+        ERROR_CHARS.clear()  # 切换方案时清空错题列表，避免混淆
+        self.error_practice_btn.configure(text="错题练习")
+        self._is_error_practice_mode = False
         self.load_new_char()  # 切换方案后加载新字以更新提示
 
     def show_info(self, message):
