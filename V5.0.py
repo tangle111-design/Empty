@@ -21,6 +21,8 @@ TODO
 增加错题练习      DONE
 增加小鹤方案      DONE
 增加文章模式     
+将错误分析数据持久化到本地（文件或数据库）
+增加练习统计数据（总练习时间、平均每字输入时间等）
 """
 
 # --- 配置部分 ---
@@ -288,7 +290,7 @@ class App(ctk.CTk):
             justify="center",
         )
         self.entry.pack(pady=10)
-        # self.entry.focus()  # 自动聚焦
+        
 
         # 按钮区
         self.btn_frame = ctk.CTkFrame(self.bottom_frame, fg_color="transparent")
@@ -384,7 +386,7 @@ class App(ctk.CTk):
             return
 
         if len(user_input) == 2:
-
+            self.total_chars += 1
             if user_input == self.target_code:
                 # 输入正确
                 self.correct_chars += 1
@@ -447,17 +449,12 @@ class App(ctk.CTk):
                 self.show_info("当前没有错题可练习！")
                 return
             self.error_practice_btn.configure(text="退出错题练习")
-            self.error_practice_mode()
+            self._is_error_practice_mode = True
             self.load_new_char()
         else:
             self.error_practice_btn.configure(text="错题练习")
             self._is_error_practice_mode = False
             self.load_new_char()  # 退出错题模式后加载正常练习的随机字
-
-    def error_practice_mode(self):
-        """进入错题练习模式"""
-        self._is_error_practice_mode = True
-        self.load_new_char()
 
     def flash_feedback(self, color):
         """简单的视觉反馈"""
