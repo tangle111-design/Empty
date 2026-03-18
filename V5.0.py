@@ -36,48 +36,46 @@ INITIALS_MAP = {"zh": "v", "ch": "i", "sh": "u"}
 
 
 # 韵母映射
-XIAOHE_FINALS_MAP = {
-    # 单字母韵母
-    "a": "a",
-    "o": "o",
-    "e": "e",
-    "i": "i",
-    "u": "u",
-    "v": "v",
-    "ü": "v",
-    # 多字母韵母
-    "ai": "d",
-    "an": "j",
-    "ang": "h",
-    "ao": "c",
-    "ei": "w",
-    "en": "f",
-    "eng": "g",
-    "er": "r",
-    "ia": "x",
-    "ian": "m",
-    "iang": "l",
-    "iao": "n",
-    "ie": "p",
-    "in": "b",
-    "ing": "k",
-    "iong": "s",
-    "iu": "q",
-    "ong": "s",
-    "ou": "z",
-    "ua": "x",
-    "uai": "k",
-    "uan": "r",
-    "uang": "l",
-    "ue": "t",
-    "ui": "v",
-    "un": "y",
-    "uo": "o",
-    "ve": "t",  # üe
-    "vn": "y",  # ün
-    "üe": "t",
-    "ün": "y",
-}
+XIAOHE_FINALS_MAP = [
+    # 二字成词的先拿出来
+    {
+        "ai": "d",
+        "an": "j",
+        "ao": "c",
+        "ei": "w",
+        "en": "f",
+        "er": "r",
+        "ou": "z",
+    },
+    {
+        "a": "a",
+        "o": "o",
+        "e": "e",
+        "i": "i",
+        "u": "u",
+        "v": "v",
+        "ang": "h",
+        "eng": "g",
+        "ia": "x",
+        "ian": "m",
+        "iang": "l",
+        "iao": "n",
+        "ie": "p",
+        "in": "b",
+        "ing": "k",
+        "iong": "s",
+        "iu": "q",
+        "ong": "s",
+        "ua": "x",
+        "uai": "k",
+        "uan": "r",
+        "uang": "l",
+        "ue": "t",
+        "ui": "v",
+        "un": "y",
+        "uo": "o",
+    },
+]
 
 MICROSOFT_FINALS_MAP = {
     # 单字母韵母
@@ -182,10 +180,17 @@ class XiaohePinyinLogic:
             code1 = INITIALS_MAP.get(py_initial, py_initial)  # 查表，查不到就是原字母
 
         code2 = ""
-        if code1 == "":
-            code1 = py_final[0]  # 零声母时，code1 取韵母首字母
-        if py_final in XIAOHE_FINALS_MAP:
-            code2 = XIAOHE_FINALS_MAP[py_final]
+        if code1 == "":  # 零声母时，优先判断是否是二字成词的韵母
+            if py_final in XIAOHE_FINALS_MAP[0]:  # 二字成词的韵母
+                code2 = py_final  # 二字成词韵母直接用全拼
+            else:
+                code1 = py_final[0]  # 零声母时，code1 取韵母首字母
+                code2 = XIAOHE_FINALS_MAP[1].get(py_final, "")
+        else:
+            if py_final in XIAOHE_FINALS_MAP[1]:
+                code2 = XIAOHE_FINALS_MAP[1][py_final]
+            else:
+                code2 = XIAOHE_FINALS_MAP[0][py_final]
 
         return code1, code2
 
@@ -289,12 +294,11 @@ class App(ctk.CTk):
             font=("Arial", 24),
             justify="center",
         )
-        self.entry.pack(pady=10)
-        
+        self.entry.pack(pady=30)
 
         # 按钮区
         self.btn_frame = ctk.CTkFrame(self.bottom_frame, fg_color="transparent")
-        self.btn_frame.pack(pady=10)
+        self.btn_frame.pack(pady=20, padx=20, fill="x")
 
         self.toggle_hint_btn = ctk.CTkButton(
             self.btn_frame, text="隐藏提示", command=self.toggle_hint
@@ -330,14 +334,25 @@ class App(ctk.CTk):
         )
         self.error_practice_btn.pack(side="left", padx=10)
 
-        self.reset_btn = ctk.CTkButton(
+        # 查看统计数据
+        self.stats_btn = ctk.CTkButton(
             self.btn_frame,
+            text="查看统计",
+            command=self.show_stats,
+            fg_color="#0BAD7F",
+            hover_color="#42AF24",
+        )
+        self.stats_btn.pack(side="left", padx=10)
+
+        self.reset_btn = ctk.CTkButton(
+            self.top_frame,
             text="重置数据",
             command=self.reset_stats,
             fg_color="#E04F5F",
             hover_color="#C0392B",
         )
-        self.reset_btn.pack(side="left", padx=10)
+        # self.reset_btn.pack(side="left", padx=10)
+        self.reset_btn.place(relx=0.01, rely=0.5, anchor="w")
 
     def bind_events(self):
         # 监听输入框内容的改变
@@ -442,6 +457,27 @@ class App(ctk.CTk):
 
             self.update_stats()
 
+    def show_stats(self):
+        """显示练习统计数据的弹窗"""
+        if self.total_chars == 0:
+            self.show_info("还没有练习数据！")
+            return
+
+        acc = (self.correct_chars / self.total_chars) * 100
+        avg_time = (
+            (time.time() - self.start_time) * 60 / self.total_chars
+            if self.start_time is not None
+            else 0
+        )
+
+        stats_message = (
+            f"总练习字数: {self.total_chars}\n"
+            f"正确字数: {self.correct_chars}\n"
+            f"正确率: {acc:.1f}%\n"
+            f"每分钟输入字数: {avg_time:.2f} 个"
+        )
+        self.show_info(stats_message)
+
     def change_error_practice_mode(self):
         """切换错题练习模式"""
         if not self._is_error_practice_mode:
@@ -523,7 +559,9 @@ class App(ctk.CTk):
         if len(ERROR_ANALYSIS_DATA[0]) + len(ERROR_ANALYSIS_DATA[1]) <= 2:
             self.show_info("当前没有错误数据可分析！")
             return
-        elif len(ERROR_ANALYSIS_DATA[0]) + len(ERROR_ANALYSIS_DATA[1]) <= 4:  # TODO 修改
+        elif (
+            len(ERROR_ANALYSIS_DATA[0]) + len(ERROR_ANALYSIS_DATA[1]) <= 4
+        ):  # TODO 修改
             self.show_info("你的错题还不够！\n练习几分钟后再来分析吧！")
             return
         else:
