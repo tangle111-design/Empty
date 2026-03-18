@@ -1,3 +1,28 @@
+'''
+为了实现本地数据存储，我对你的原始代码进行了以下 6 处具体改动：
+1. 扩展标准库导入 (Imports)
+在代码最顶部的导入部分，新增了 json 和 os。
+改动前：import sys, subprocess, importlib, random, time
+改动后：import sys, subprocess, importlib, random, time, json, os
+2. 新增数据文件常量 (Constants)
+在配置部分添加了存储文件路径的定义。
+新增代码：DATA_FILE = "practice_data.json"
+3. 在 App.__init__ 中新增数据加载
+在窗口初始化时，确保先从本地读取历史数据，再渲染界面。
+改动内容：在 self.create_widgets() 之前插入了 self.load_data()。这样界面上的“正确率”和“总字数”一打开就是历史累计值。
+4. 新增两个数据管理方法 (New Methods)
+在 App 类中完整添加了这两个方法，负责磁盘读写：
+save_data(self)：将 ERROR_CHARS（错题列表）、ERROR_ANALYSIS_DATA（错误统计字典）、total_chars 和 correct_chars 封装进一个大字典，并写入 practice_data.json。
+load_data(self)：检查文件是否存在。如果存在，使用 json.load 读取并更新全局变量和类属性。特别注意： 这里使用了 global 关键字来更新外部定义的 ERROR_CHARS 和 ERROR_ANALYSIS_DATA。
+5. 修改 check_input 输入检查逻辑
+为了实现“实时保存”，在处理完用户输入后立即写入硬盘。
+改动内容：在 check_input 方法的最后一行（self.update_stats() 之后）添加了 self.save_data()。
+逻辑优化：在记录声母/韵母错误时，增加了字典键（Key）是否存在判断的逻辑。如果本地读取的字典里没有某个键，程序会自动初始化它，防止 KeyError 崩溃。
+6. 修改 reset_stats 重置逻辑
+确保“重置”不仅仅是清空当前内存，还要抹除本地文件。
+改动内容：
+清空 ERROR_CHARS 和 ERROR_ANALYSIS_DATA。
+添加了 if os.path.exists(DATA_FILE): os.remove(DATA_FILE)。这意味着点击重置后，下次启动软件也会是全新的状态。'''
 import sys, subprocess, importlib, random, time, json, os
 
 # 自动安装库
