@@ -302,7 +302,7 @@ class App(ctk.CTk):
         # 错题模式
         self.error_practice_btn = ctk.CTkButton(
             self.btn_frame,
-            text="错题消除练习",
+            text="错题消消乐",
             command=self.change_error_practice_mode,
             fg_color="#F39C12",
             hover_color="#D35400",
@@ -460,17 +460,17 @@ class App(ctk.CTk):
         self.show_info(stats_message)
 
     def change_error_practice_mode(self):
-        """切换错题消除练习模式"""
+        """切换错题消消乐模式"""
         data = self.get_current_data()
         if not self._is_error_practice_mode:
             if not data["error_chars"]:
                 self.show_info(f"当前方案没有错题可练习！")
                 return
-            self.error_practice_btn.configure(text="退出错题消除练习", fg_color="#E67E22")
+            self.error_practice_btn.configure(text="退出错题消消乐", fg_color="#E67E22")
             self._is_error_practice_mode = True
             self.error_mastery_tracker = {} # 开启模式时重置进度
         else:
-            self.error_practice_btn.configure(text="错题消除练习", fg_color="#F39C12")
+            self.error_practice_btn.configure(text="错题消消乐", fg_color="#F39C12")
             self._is_error_practice_mode = False
         
         self.load_new_char()
@@ -507,7 +507,7 @@ class App(ctk.CTk):
             "correct_chars": 0
         }
         self._is_error_practice_mode = False
-        self.error_practice_btn.configure(text="错题消除练习", fg_color="#F39C12")
+        self.error_practice_btn.configure(text="错题消消乐", fg_color="#F39C12")
         self.start_time = None
         self.update_stats()
         self.save_data()
@@ -522,7 +522,7 @@ class App(ctk.CTk):
             self.scheme_btn.configure(text="当前方案: 微软双拼", fg_color="#3498DB")
         
         self._is_error_practice_mode = False
-        self.error_practice_btn.configure(text="错题消除练习", fg_color="#F39C12")
+        self.error_practice_btn.configure(text="错题消消乐", fg_color="#F39C12")
         self.start_time = None
         
         self.update_stats()
@@ -597,14 +597,14 @@ class App(ctk.CTk):
         if init_values:
             ax1 = fig.add_subplot(121)
             ax1.bar(init_labels, init_values, color="#E04F5F")
-            ax1.set_title("易错声母排名", fontdict=TITLE_FONT, pad=20)
+            ax1.set_title("易错声母TOP10", fontdict=TITLE_FONT, pad=20)
             ax1.tick_params(axis='both', which='major', labelsize=TICK_SIZE)
             ax1.set_ylabel("错误次数", fontdict=LABEL_FONT)
         
         if final_values:
             ax2 = fig.add_subplot(122)
             ax2.bar(final_labels, final_values, color="#0BAD7F")
-            ax2.set_title("易错韵母排名", fontdict=TITLE_FONT, pad=20)
+            ax2.set_title("易错韵母TOP10", fontdict=TITLE_FONT, pad=20)
             ax2.tick_params(axis='both', which='major', labelsize=TICK_SIZE)
             fig.autofmt_xdate(rotation=30)
 
